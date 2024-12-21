@@ -1,0 +1,180 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_CREDENTIALS_ID = 'docker_hub'
+        DOCKER_IMAGE_BACKEND = 'raslen10/mern-backend'
+        DOCKER_IMAGE_FRONTEND = 'raslen10/mern-frontend'
+        DOCKER_PASSWORD='warghui110'
+        IMAGE_TAG = 'latest' // Modify as needed
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo 'Checking out source code...'
+                bat 'git config --global http.postBuffer 1048576000'
+
+                checkout scm
+            }
+        }
+
+        stage('Install Node.js and npm') {
+            steps {
+                // For frontend
+                dir('./discord-frontend') {
+    
+                    echo 'Installing Node.js and npm...'
+                    bat '''
+                        REM Check if Node.js is installed
+                        node -v || (
+                            echo "Installing Node.js..."
+                            curl -sL https://nodejs.org/dist/v18.17.1/node-v18.17.1-x64.msi -o nodejs.msi
+                            msiexec /i nodejs.msi /quiet
+                            DEL nodejs.msi
+                        )
+                        REM Verify installation
+                        node -v
+                        npm -v
+                    '''
+                    echo 'Installing frontend dependencies...'
+                    bat 'npm install'
+                    echo 'Installing missing Babel plugin for frontend...'
+                    bat 'npm install --save-dev @babel/plugin-proposal-private-property-in-object @babel/plugin-proposal-private-methods react react-dom react-scripts'
+                }
+
+                // For backend
+                dir('./discord-backend') {
+                    echo 'Installing backend dependencies...'
+                    bat 'npm install'
+                }
+            }
+        }
+
+        stage('Frontend - Build') {
+            steps {
+                dir('./discord-frontend') {
+                    echo 'Building frontend...'
+                    bat '''
+                        set NODE_OPTIONS=--openssl-legacy-provider
+                        set CI=false
+                        npm run build
+                    '''
+                }
+            }
+        }
+
+        stage('Install Jest and Cypress') {
+            parallel {
+                stage('Backend - Install Jest and Cypress') {
+                    steps {
+                        dir('./discord-backend') {
+                            echo 'Installing Jest and Cypress for backend tests...'
+                            bat 'npm install --save-dev jest cypress @testing-library/react @testing-library/jest-dom --legacy-peer-deps '
+                        }
+                    }
+                }
+                stage('Frontend - Install Jest and Cypress') {
+                    steps {
+                        dir('./discord-frontend') {
+                            echo 'Installing Jest and Cypress for frontend tests...'
+                            bat 'npm install --save-dev jest cypress supertest --legacy-peer-deps'
+                        }
+                    }
+                }
+            }
+        }
+
+              
+                
+
+// Frontend Integration Tests
+stage('Frontend - Tests') {
+    steps {
+        dir('./discord-frontend') {
+            echo 'Installing dependencies...'
+            bat 'npm ci --legacy-peer-deps'
+            bat 'npm install redux-mock-store --legacy-peer-deps'
+            bat 'npm install react@latest react-dom@latest @testing-library/dom@latest @testing-library/react@latest --legacy-peer-deps'
+            bat 'npm install @testing-library/jest-dom --save-dev --legacy-peer-deps';
+            echo 'Running frontend integration tests...'
+            bat '''
+            npx jest frontend/tests/integration/auth.test.js --coverage --env=jsdom
+            ''' // Runs tests with proper formatting for multi-line commands
+
+            echo 'Integration tests completed successfully!'
+        }
+    }
+}
+
+                // Backend Unit Tests
+                stage('Backend -  Tests') {
+                    steps {
+                        dir('./discord-backend') {
+                            echo 'Installing backend dependencies...'
+                            bat 'npm ci --legacy-peer-deps'
+                            bat 'npm install supertest express-joi-validation joi --save-dev --legacy-peer-deps' 
+                            bat 'npm install jest@latest jest-environment-jsdom@latest --save-dev --legacy-peer-deps'
+                            bat 'npm install mongoose mongodb --save-dev --legacy-peer-deps'
+                            bat 'npm install eslint prettier --save-dev --legacy-peer-deps'
+                            echo 'Running backend integration tests...'
+                            bat '''
+                            npx jest backend/tests/integration/auth.test.js --runInBand --detectOpenHandles
+                            '''
+                            echo 'Backend integration tests completed successfully!'
+                        }
+                    }
+                }
+stage('Dockerize: Build Backend Image') {
+    steps {
+        dir('./discord-backend') {
+            echo 'Dockerizing backend...'
+            bat '''
+                docker build -t %DOCKER_IMAGE_BACKEND%:latest .
+            '''
+        }
+    }
+}
+stage('Dockerize: Running Backend Image') {
+    steps {
+        dir('./discord-backend') {
+            echo 'Running backend...'
+            bat '''
+                docker run -d --name backend-container -p 5000:5000 %DOCKER_IMAGE_BACKEND%:latest
+            '''
+        }
+    }
+}
+
+stage('Dockerize: Build Frontend Image') {
+    steps {
+        dir('./discord-frontend') {
+            echo 'Dockerizing frontend...'
+            bat '''
+                docker build -t %DOCKER_IMAGE_FRONTEND%:latest .
+            '''
+        }
+    }
+}
+stage('Dockerize: Running Frontend Image') {
+    steps {
+        dir('./discord-frontend') {
+            echo 'Running frontend...'
+            bat '''
+                docker run -d --name frontend-container -p 3004:3000 %DOCKER_IMAGE_FRONTEND%:latest
+            '''
+        }
+    }
+}
+            }
+
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
