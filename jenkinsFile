@@ -78,7 +78,7 @@ pipeline {
                     steps {
                         dir('./discord-frontend') {
                             echo 'Installing Jest and Cypress for frontend tests...'
-                            bat 'npm install --save-dev jest cypress supertest --legacy-peer-deps'
+                            bat 'npm install --save-dev jest cypress @testing-library/react @testing-library/jest-dom supertest --legacy-peer-deps'
                         }
                     }
                 }
