@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         DOCKER_CREDENTIALS_ID = 'docker_hub'
-        DOCKER_IMAGE_BACKEND = 'raslen10/mern-backend'
-        DOCKER_IMAGE_FRONTEND = 'raslen10/mern-frontend'
-        DOCKER_PASSWORD='warghui110'
+        DOCKER_IMAGE_BACKEND = 'firas/mern-backend'
+        DOCKER_IMAGE_FRONTEND = 'firas/mern-frontend'
+        DOCKER_PASSWORD='firas'
         IMAGE_TAG = 'latest' // Modify as needed
     }
 
