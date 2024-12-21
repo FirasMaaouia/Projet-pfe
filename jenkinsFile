@@ -56,7 +56,7 @@ pipeline {
                 dir('./discord-frontend') {
                     echo 'Building frontend...'
                     bat '''
-                        set NODE_OPTIONS=--openssl-legacy-provider
+                       // set NODE_OPTIONS=--openssl-legacy-provider
                         set CI=false
                         npm run build
                     '''
